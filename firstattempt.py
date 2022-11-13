@@ -14,9 +14,12 @@ from torch.nn import functional as F
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 from PIL import Image
+import os
 import ast
+import numpy as np
+import pywt
+import matplotlib.pyplot as plt
 from PIL import Image as PImage
-
 device="cpu"
 class VAE(nn.Module):
     def __init__(self, z_dim):
@@ -74,25 +77,30 @@ class VAE(nn.Module):
         z, mu, logvar = self.encode(x)
         z = self.decode(z)
         return z, mu, logvar
-
-model = VAE(z_dim=20)
-model.load_state_dict(torch.load("20_lat_1_beta.torch", map_location=torch.device('cpu')))
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super(NeuralNetwork,self).__init__()
         self.linear_relu_stack = nn.Sequential(
             nn.Linear(20, 20),
             nn.ReLU(),
-            nn.Linear(20, 10),
+            nn.Linear(20,10),
             )
     def forward(self,x):
         output=self.linear_relu_stack(x)
         return output
+def coords(m):
+    for i in range(2, len(m) - 3):
+        if m[i] == ',':
+            return m[2:i],m[(i+2):(len(m)-2)]
+model = VAE(z_dim=20)
+model.load_state_dict(torch.load("20_lat_1_beta.torch", map_location=torch.device('cpu')))
 model2=NeuralNetwork()
 optimizer = torch.optim.SGD(model2.parameters(), 1e-3)
 with open('x_y.txt', 'r') as f: 
     lines = f.readlines()
+epoch=0
 for line in lines:
+        epoch=epoch+1
         x, y = line.split('=')[0], line.split('=')[1]
         a=line.split('=')
         joint1=a[2]
@@ -100,12 +108,11 @@ for line in lines:
         joint3=a[4]
         joint4=a[5]
         joint5=a[6]
-        x1,y1=ast.literal_eval(joint1)
-        x2,y2=ast.literal_eval(joint2)
-        x3,y3=ast.literal_eval(joint3)
-        x4,y4=ast.literal_eval(joint4)
-        x5,y5=ast.literal_eval(joint5)
-
+        x1,y1=coords(joint1)
+        x2,y2=coords(joint2)
+        x3,y3=coords(joint3)
+        x4,y4=coords(joint4)
+        x5,y5=coords(joint5)
         x, y = x.split(' '), y.split(' ')
         x = [i for i in x if i]
         y = [i for i in y if i]
@@ -157,12 +164,25 @@ for line in lines:
         input_tensor=torch.tensor(input_list)
         latent_vector=model.encode(input_tensor)
         prediction=model2(latent_vector[0])
-        output_list=[x1,x2,x3,x4,x5,y1,y2,y3,y4,y5]
+        output_list=[float(x1),float(x2),float(x3),float(x4),float(x5),float(y1),float(y2),float(y3),float(y4),float(y5)]
         output_tensor=torch.tensor(output_list)
         loss_function=nn.MSELoss()
         loss=loss_function(prediction,output_tensor)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step() 
-        print(f"loss:{loss:>7f}")
-        
+        if(epoch<10000):
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step() 
+        elif(epoch>=10000):
+            print("NEW EPOCH")
+            print("Joint locations (first predicted followed by actual)")
+            print("Predicted Joint 1: "+str(prediction[0].item())+", "+str(prediction[5].item()))
+            print("Actual Joint 1: "+str(float(x1))+", "+str(float(y1)))
+            print("Predicted Joint 2: "+str(prediction[1].item())+", "+str(prediction[6].item()))
+            print("Actual Joint 2: "+str(float(x2))+", "+str(float(y2)))
+            print("Predicted Joint 3: "+str(prediction[2].item())+", "+str(prediction[7].item()))
+            print("Actual Joint 3: "+str(float(x3))+", "+str(float(y3)))
+            print("Predicted Joint 4: "+str(prediction[3].item())+", "+str(prediction[8].item()))
+            print("Actual Joint 4: "+str(float(x4))+", "+str(float(y4)))
+            print("Predicted Joint 5: "+str(prediction[4].item())+", "+str(prediction[9].item()))
+            print("Actual Joint 5: "+str(float(x5))+", "+str(float(y5)))
+            print(f"loss: {loss:>7f}")
