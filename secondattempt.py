@@ -108,6 +108,8 @@ def coords(m):
     for i in range(2, len(m) - 3):
         if m[i] == ',':
             return m[2:i],m[(i+2):(len(m)-2)]
+trainloss=0
+testloss=0
 model = VAE(z_dim=5)
 model.load_state_dict(torch.load("5_lat.torch", map_location=torch.device('cpu')))
 model2=NeuralNetwork()
@@ -229,7 +231,8 @@ for line in lines:
         loss_function=nn.MSELoss()
         loss=loss_function(prediction,output_tensor)
         loss=loss*10
-        if(epoch<34870):
+        #43587 items in the dataset
+        if(epoch<34000):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -246,7 +249,10 @@ for line in lines:
             print("Predicted Joint 5: "+str(prediction[4].item())+", "+str(prediction[9].item()))
             print("Actual Joint 5: "+str(float(x5))+", "+str(float(y5)))
             print(f"loss: {loss:>7f}")
-        elif(epoch>=34870):
+            trainloss+=loss
+            if(epoch==4000):
+                print(trainloss/4000)
+        elif(epoch>=34000):
             print("NEW EPOCH"+" epoch number is "+str(epoch))
             print("Joint locations (first predicted followed by actual)")
             print("Predicted Joint 1: "+str(prediction[0].item())+", "+str(prediction[5].item()))
@@ -260,3 +266,8 @@ for line in lines:
             print("Predicted Joint 5: "+str(prediction[4].item())+", "+str(prediction[9].item()))
             print("Actual Joint 5: "+str(float(x5))+", "+str(float(y5)))
             print(f"loss: {loss:>7f}")
+            testloss+=loss
+print("train loss")
+print(trainloss/34000)
+print("test loss")
+print(testloss/(epoch-34000))
